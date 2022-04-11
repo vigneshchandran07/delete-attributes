@@ -14,6 +14,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,10 +25,22 @@ import java.util.concurrent.Future;
 public class DeleteAttributeV1 {
     public static void main(String[] args) throws Exception {
 
-        String env = args[3];
-        String tenantID = args[4];
+        long st = System.currentTimeMillis();
 
-        ReltioAPIService reltioAPIService = Util.getReltioService(args[1], args[2], null);
+
+
+        log.info("Delete Attribute Program Started at {}", st);
+        log.info("Reading Properties File..");
+        Properties properties;
+
+
+        properties = Util.getProperties(args[0], "PASSWORD");
+
+
+        String env = properties.getProperty("ENVIRONMENT");
+        String tenantID = properties.getProperty("TENANT_ID");
+
+        ReltioAPIService reltioAPIService = Util.getReltioService(properties);
         String deleteBody =
                 "[{\"type\":\"DELETE_ATTRIBUTE\"," +
                         "\"uri\":\"%URI%\"," +
@@ -44,9 +57,9 @@ public class DeleteAttributeV1 {
                 "%entityID%" +
                 "/_update?options=sendHidden,updateAttributeUpdateDates,addRefAttrUriToCrosswalk";
 
-        long st = System.currentTimeMillis();
 
-        log.info("Delete Attribute Program Started at {}", st);
+
+
 
         int threads = 10;
         ExecutorService executorService = Executors.newFixedThreadPool(threads);
@@ -57,7 +70,7 @@ public class DeleteAttributeV1 {
         for (int threadNum = 0; threadNum < threads
                 ; threadNum++) {
             try {
-                Scanner scanner = new Scanner(new File(args[0]));
+                Scanner scanner = new Scanner(new File(properties.getProperty("INPUT_FILE")));
                 scanner.nextLine();
 
                 while (scanner.hasNextLine()) {
@@ -79,7 +92,7 @@ public class DeleteAttributeV1 {
                 scanner.close();
                 break;
             } catch (FileNotFoundException e) {
-                e.printStackTrace();
+                log.error(e.getMessage());
             }
         }
 //        waitForTasksReady(futures,
