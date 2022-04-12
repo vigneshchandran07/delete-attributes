@@ -1,0 +1,8 @@
+uri,sourcetable,value,id_uri,id_value,
+entities/12KLBw4f,MedPro,0001,entities/12KLBw4f/attributes/Identifiers/2daYKGyy9,8638851,MedPro
+entities/12KLBw4f,MedPro,0001,entities/12KLBw4f/attributes/Identifiers/2daYKGyy1,8638851,MedPro
+entities/12KLBw4f,MedPro,0001,entities/12KLBw4f/attributes/Identifiers/2daYKGyy2,8638851,MedPro
+entities/12KLBw4f,MedPro,0001,entities/12KLBw4f/attributes/Identifiers/2daYKGyy3,8638851,MedPro
+entities/12KLBw4f,MedPro,0001,entities/12KLBw4f/attributes/Identifiers/2daYKGyy4,8638851,MedPro
+entities/12KLBw4f,MedPro,0001,entities/12KLBw4f/attributes/Identifiers/2daYKGyy5,8638851,MedPro
+entities/12KLBw4f,MedPro,0001,entities/12KLBw4f/attributes/Identifiers/2daYKGyy6,8638851,MedPro
