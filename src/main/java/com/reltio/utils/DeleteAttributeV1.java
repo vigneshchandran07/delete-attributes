@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -28,7 +29,6 @@ public class DeleteAttributeV1 {
         long st = System.currentTimeMillis();
 
 
-
         log.info("Delete Attribute Program Started at {}", st);
         log.info("Reading Properties File..");
         Properties properties;
@@ -41,12 +41,6 @@ public class DeleteAttributeV1 {
         String tenantID = properties.getProperty("TENANT_ID");
 
         ReltioAPIService reltioAPIService = Util.getReltioService(properties);
-        String deleteBody =
-                "[{\"type\":\"DELETE_ATTRIBUTE\"," +
-                        "\"uri\":\"%URI%\"," +
-                        "\"crosswalk\":{\"type\":\"configuration/sources/%CROSSWALK_TYPE%\"," +
-                        "\"value\":\"%CROSSWALK_VALUE%\"," +
-                        "\"sourceTable\":\"%CROSSWALK_SOURCETABLE%\"}}]";
 
 
         String url = "https://" +
@@ -58,43 +52,44 @@ public class DeleteAttributeV1 {
                 "/_update?options=sendHidden,updateAttributeUpdateDates,addRefAttrUriToCrosswalk";
 
 
-
-
-
         int threads = 10;
         ExecutorService executorService = Executors.newFixedThreadPool(threads);
 
         long totalFuturesExecutionTime = 0L;
         List<Future<Long>> futures = new ArrayList<>();
 
-        for (int threadNum = 0; threadNum < threads
-                ; threadNum++) {
-            try {
-                Scanner scanner = new Scanner(new File(properties.getProperty("INPUT_FILE")));
-                scanner.nextLine();
 
-                while (scanner.hasNextLine()) {
-                    String[] lines = scanner.nextLine().split(",");
-                    url = url.replace("%entityID%", lines[0]);
-                    deleteBody = deleteBody
-                            .replace("%URI%", lines[3])
-                            .replace("%CROSSWALK_TYPE%", lines[5])
-                            .replace("%CROSSWALK_VALUE%", lines[4])
-                            .replace("%CROSSWALK_SOURCETABLE%", lines[1]);
+        try {
+            Scanner scanner = new Scanner(new File(properties.getProperty("INPUT_FILE")));
+            scanner.nextLine();
 
-                    System.out.println(deleteBody);
-                    String finalUrl = url;
-                    String finalDeleteBody = deleteBody;
-                    futures.add(executorService.submit(() -> delete(finalUrl, finalDeleteBody, reltioAPIService)));
+            while (scanner.hasNextLine()) {
+                String[] lines = scanner.nextLine().split(",");
+                url = url.replace("%entityID%", lines[0]);
+                String deleteBody =
+                        "[{\"type\":\"DELETE_ATTRIBUTE\"," +
+                                "\"uri\":\"%URI%\"," +
+                                "\"crosswalk\":{\"type\":\"configuration/sources/%CROSSWALK_TYPE%\"," +
+                                "\"value\":\"%CROSSWALK_VALUE%\"," +
+                                "\"sourceTable\":\"%CROSSWALK_SOURCETABLE%\"}}]";
+                deleteBody = deleteBody
+                        .replace("%URI%", lines[3])
+                        .replace("%CROSSWALK_TYPE%", lines[5])
+                        .replace("%CROSSWALK_VALUE%", lines[4])
+                        .replace("%CROSSWALK_SOURCETABLE%", lines[1]);
 
+                System.out.println(deleteBody);
+                String finalUrl = url;
+                String finalDeleteBody = deleteBody;
+                futures.add(executorService.submit(() -> delete(finalUrl, finalDeleteBody, reltioAPIService)));
+                //delete(finalUrl, finalDeleteBody, reltioAPIService);
 
-                }
-                scanner.close();
-                break;
-            } catch (FileNotFoundException e) {
-                log.error(e.getMessage());
             }
+            scanner.close();
+        } catch (FileNotFoundException e) {
+            log.error(e.getMessage());
         }
+
 //        waitForTasksReady(futures,
 //                10);
 //        waitForTasksReady(futures,0);
@@ -103,12 +98,18 @@ public class DeleteAttributeV1 {
 
     }
 
-    private static Long delete(String url, String body, ReltioAPIService reltioAPIService) throws ReltioAPICallFailureException, GenericException {
+    private static Long delete(String url, String body, ReltioAPIService reltioAPIService) {
         long st = System.currentTimeMillis();
-        Map<String, String> headers = new HashMap<String, String>();
+        Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
-        log.info(reltioAPIService.post(url, headers, body));
+        try {
+            log.info(reltioAPIService.post(url, headers, body));
+        } catch (ReltioAPICallFailureException e) {
+            log.error("Reltio Error {}", Arrays.toString(e.getStackTrace()));
+        } catch (GenericException e) {
+            log.error("Generic Error {}", Arrays.toString(e.getStackTrace()));
 
+        }
         return System.currentTimeMillis() - st;
     }
 
