@@ -58,41 +58,45 @@ public class DeleteAttributeV1 {
         long totalFuturesExecutionTime = 0L;
         List<Future<Long>> futures = new ArrayList<>();
 
+        boolean eof = false;
 
-        try {
-            Scanner scanner = new Scanner(new File(properties.getProperty("INPUT_FILE")));
-            scanner.nextLine();
+        while (!eof) {
+            try {
+                Scanner scanner = new Scanner(new File(properties.getProperty("INPUT_FILE")));
+                scanner.nextLine();
 
-            while (scanner.hasNextLine()) {
-                String[] lines = scanner.nextLine().split(",");
-                url = url.replace("%entityID%", lines[0]);
-                String deleteBody =
-                        "[{\"type\":\"DELETE_ATTRIBUTE\"," +
-                                "\"uri\":\"%URI%\"," +
-                                "\"crosswalk\":{\"type\":\"configuration/sources/%CROSSWALK_TYPE%\"," +
-                                "\"value\":\"%CROSSWALK_VALUE%\"," +
-                                "\"sourceTable\":\"%CROSSWALK_SOURCETABLE%\"}}]";
-                deleteBody = deleteBody
-                        .replace("%URI%", lines[3])
-                        .replace("%CROSSWALK_TYPE%", lines[5])
-                        .replace("%CROSSWALK_VALUE%", lines[4])
-                        .replace("%CROSSWALK_SOURCETABLE%", lines[1]);
+                while (scanner.hasNextLine()) {
+                    String[] lines = scanner.nextLine().split(",");
+                    String entityID = lines[0];
+                    log.debug(entityID);
+                    String finalUrl = url.replace("%entityID%",entityID);
+                    String deleteBody =
+                            "[{\"type\":\"DELETE_ATTRIBUTE\"," +
+                                    "\"uri\":\"%URI%\"," +
+                                    "\"crosswalk\":{\"type\":\"configuration/sources/%CROSSWALK_TYPE%\"," +
+                                    "\"value\":\"%CROSSWALK_VALUE%\"," +
+                                    "\"sourceTable\":\"%CROSSWALK_SOURCETABLE%\"}}]";
+                    deleteBody = deleteBody
+                            .replace("%URI%", lines[3])
+                            .replace("%CROSSWALK_TYPE%", lines[5])
+                            .replace("%CROSSWALK_VALUE%", lines[4])
+                            .replace("%CROSSWALK_SOURCETABLE%", lines[1]);
 
-                System.out.println(deleteBody);
-                String finalUrl = url;
-                String finalDeleteBody = deleteBody;
-                futures.add(executorService.submit(() -> delete(finalUrl, finalDeleteBody, reltioAPIService)));
-                //delete(finalUrl, finalDeleteBody, reltioAPIService);
+                    String finalDeleteBody = deleteBody;
+                    futures.add(executorService.submit(() -> delete(finalUrl, finalDeleteBody, reltioAPIService)));
+                    //delete(finalUrl, finalDeleteBody, reltioAPIService);
 
+                }
+                eof = true;
+                scanner.close();
+            } catch (FileNotFoundException e) {
+                log.error(e.getMessage());
             }
-            scanner.close();
-        } catch (FileNotFoundException e) {
-            log.error(e.getMessage());
-        }
 
-//        waitForTasksReady(futures,
-//                10);
-//        waitForTasksReady(futures,0);
+            waitForTasksReady(futures,
+                    10);
+        }
+        waitForTasksReady(futures, 0);
         executorService.shutdown();
 
 
