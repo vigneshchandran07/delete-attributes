@@ -7,8 +7,11 @@ import com.reltio.cst.util.Util;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -39,6 +42,8 @@ public class DeleteAttributeV1 {
 
         String env = properties.getProperty("ENVIRONMENT");
         String tenantID = properties.getProperty("TENANT_ID");
+        BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(properties.getProperty("FAILED_TO_DELETE")));
+        BufferedWriter bufferedWriter2 = new BufferedWriter(new FileWriter(properties.getProperty("SUCCESS_TO_DELETE")));
 
         ReltioAPIService reltioAPIService = Util.getReltioService(properties);
 
@@ -52,7 +57,7 @@ public class DeleteAttributeV1 {
                 "/_update?options=sendHidden,updateAttributeUpdateDates,addRefAttrUriToCrosswalk";
 
 
-        int threads = 10;
+        int threads = Integer.parseInt(properties.getProperty("NO_OF_THREADS"));
         ExecutorService executorService = Executors.newFixedThreadPool(threads);
 
         long totalFuturesExecutionTime = 0L;
@@ -69,21 +74,23 @@ public class DeleteAttributeV1 {
                     String[] lines = scanner.nextLine().split(",");
                     String entityID = lines[0];
                     log.debug(entityID);
-                    String finalUrl = url.replace("%entityID%",entityID);
+                    String finalUrl = url.replace("%entityID%", entityID);
                     String deleteBody =
                             "[{\"type\":\"DELETE_ATTRIBUTE\"," +
                                     "\"uri\":\"%URI%\"," +
                                     "\"crosswalk\":{\"type\":\"configuration/sources/%CROSSWALK_TYPE%\"," +
                                     "\"value\":\"%CROSSWALK_VALUE%\"," +
                                     "\"sourceTable\":\"%CROSSWALK_SOURCETABLE%\"}}]";
+
+                    String fullUri = lines[3];
                     deleteBody = deleteBody
-                            .replace("%URI%", lines[3])
+                            .replace("%URI%", fullUri)
                             .replace("%CROSSWALK_TYPE%", lines[5])
                             .replace("%CROSSWALK_VALUE%", lines[4])
                             .replace("%CROSSWALK_SOURCETABLE%", lines[1]);
 
                     String finalDeleteBody = deleteBody;
-                    futures.add(executorService.submit(() -> delete(finalUrl, finalDeleteBody, reltioAPIService)));
+                    futures.add(executorService.submit(() -> delete(finalUrl, finalDeleteBody, reltioAPIService, bufferedWriter, bufferedWriter2, fullUri)));
                     //delete(finalUrl, finalDeleteBody, reltioAPIService);
 
                 }
@@ -97,21 +104,30 @@ public class DeleteAttributeV1 {
                     10);
         }
         waitForTasksReady(futures, 0);
+        bufferedWriter.close();
+        bufferedWriter2.close();
         executorService.shutdown();
 
 
     }
 
-    private static Long delete(String url, String body, ReltioAPIService reltioAPIService) {
+    private static Long delete(String url, String body, ReltioAPIService reltioAPIService, BufferedWriter bufferedWriter,
+                               BufferedWriter successLogs, String fullUri) throws IOException {
         long st = System.currentTimeMillis();
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
         try {
-            log.info(reltioAPIService.post(url, headers, body));
+            String response = reltioAPIService.post(url, headers, body);
+            log.debug(response);
+            log.info("Currently Deleting.. {} ", fullUri);
+            successLogs.write(fullUri + " : Deleted\n");
         } catch (ReltioAPICallFailureException e) {
             log.error("Reltio Error {}", Arrays.toString(e.getStackTrace()));
+            bufferedWriter.write(url + " : " + e.getErrorResponse() + "\n");
+
         } catch (GenericException e) {
             log.error("Generic Error {}", Arrays.toString(e.getStackTrace()));
+            bufferedWriter.write(url + " : " + e.getMessage() + "\n");
 
         }
         return System.currentTimeMillis() - st;
